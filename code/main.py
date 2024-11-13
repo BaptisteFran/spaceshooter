@@ -59,6 +59,8 @@ class Meteor(pygame.sprite.Sprite):
         super().__init__(groups)
         self.image = img_surf
         self.rect = self.image.get_frect(center = pos)
+        self.direction = pygame.Vector2(random.uniform(-0.5, 0.5), 1)
+        self.speed = random.randint(400, 500)
         """
         PRACTICE TIMERS
         self.destroy_cooldown = 3000
@@ -67,7 +69,7 @@ class Meteor(pygame.sprite.Sprite):
 
 
     def update(self, delta_time):
-        self.rect.centery += 400 * delta_time
+        self.rect.center += self.direction * self.speed * delta_time
         if self.rect.top > WINDOW_HEIGHT:
             self.kill()
         """
