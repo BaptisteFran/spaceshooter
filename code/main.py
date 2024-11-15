@@ -6,7 +6,7 @@ from os.path import join
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
         super().__init__(groups)
-        self.image = pygame.image.load(join('images', 'player.png')).convert_alpha() # convert or convert_alpha to improve performances
+        self.image = pygame.image.load(join('../images', 'player.png')).convert_alpha() # convert or convert_alpha to improve performances
         self.rect = self.image.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
         self.direction = pygame.Vector2()
         self.speed = 300
@@ -33,6 +33,7 @@ class Player(pygame.sprite.Sprite):
             if current_time - self.laser_shoot_time >= self.cooldown_duration:
                 self.can_shoot = True
 
+
     def update(self, delta_time):
         keys = pygame.key.get_pressed()
         self.direction.x = int(keys[pygame.K_d]) - int(keys[pygame.K_q])
@@ -40,11 +41,22 @@ class Player(pygame.sprite.Sprite):
         self.direction = self.direction.normalize() if self.direction != pygame.Vector2() else self.direction
         self.rect.center += self.direction * self.speed * delta_time
 
+
+        if (self.rect.left < 0 and self.direction.x < 0 ) or (self.rect.right > WINDOW_WIDTH and self.direction.x > 0):
+            self.speed = 0
+        # Why isn't direction.y constraint working ?
+        elif (self.rect.top < 0 and self.direction.y < 0) or (
+                self.rect.bottom > WINDOW_HEIGHT and self.direction.y > 0):
+            self.speed = 0
+        else:
+            self.speed = 300
+
         recent_keys = pygame.key.get_just_pressed()
         if recent_keys[pygame.K_SPACE] and self.can_shoot:
             Laser(laser_surf, self.rect.midtop, (all_sprites, laser_sprites))
             self.can_shoot = False
             self.laser_shoot_time = pygame.time.get_ticks()
+            laser_sound.play()
 
         self.laser_timer()
 
@@ -87,6 +99,7 @@ class Meteor(pygame.sprite.Sprite):
         self.rect.center += self.direction * self.speed * delta_time
         self.rotation += self.rotation_orientation * dt
         self.image = pygame.transform.rotozoom(self.original_surf, self.rotation, 1)
+        self.rect = self.image.get_frect(center = self.rect.center)
         if self.rect.top > WINDOW_HEIGHT:
             self.kill()
         """
@@ -94,6 +107,22 @@ class Meteor(pygame.sprite.Sprite):
         if pygame.time.get_ticks() - self.time > self.destroy_cooldown:
             self.kill()
         """
+
+class AnimatedExplosion(pygame.sprite.Sprite):
+    def __init__(self, frames, pos, groups):
+        super().__init__(groups)
+        self.frames = frames
+        self.frame_index = 0
+        self.image = self.frames[self.frame_index]
+        self.rect = self.image.get_frect(center = pos)
+
+
+    def update(self, delta_time):
+        self.frame_index += 20 * delta_time
+        if self.frame_index < len(self.frames):
+            self.image = self.frames[int(self.frame_index)]
+        else:
+            self.kill()
 
 def collisions():
     global running
@@ -107,6 +136,8 @@ def collisions():
         collide = pygame.sprite.spritecollide(laser, meteor_sprites, True)
         if collide:
             laser.kill()
+            AnimatedExplosion(explosion_frames, laser.rect.midtop, all_sprites)
+            explosion_sound.play()
 
 def display_score():
     current_time = pygame.time.get_ticks() // 100
@@ -124,12 +155,21 @@ running = True
 clock = pygame.time.Clock()
 fps = 0.0
 
-# import
-star_surf = pygame.image.load(join('images', 'star.png')).convert_alpha()
-meteor_surf = pygame.image.load(join('images', 'meteor.png')).convert_alpha()
-laser_surf = pygame.image.load(join('images', 'laser.png')).convert_alpha()
-font = pygame.font.Font(join('images', 'Oxanium-Bold.ttf'), 40) # none = default font
+# Images & Font import
+star_surf = pygame.image.load(join('../images', 'star.png')).convert_alpha()
+meteor_surf = pygame.image.load(join('../images', 'meteor.png')).convert_alpha()
+laser_surf = pygame.image.load(join('../images', 'laser.png')).convert_alpha()
+font = pygame.font.Font(join('../images', 'Oxanium-Bold.ttf'), 40) # none = default font
+explosion_frames = [pygame.image.load(join('../images', 'explosion', f'{i}.png')).convert_alpha() for i in range(21)]
 
+# Audio import
+laser_sound = pygame.mixer.Sound(join('../audio', 'laser.wav'))
+laser_sound.set_volume(0.1)
+explosion_sound = pygame.mixer.Sound(join('../audio', 'explosion.wav'))
+explosion_sound.set_volume(0.1)
+game_music = pygame.mixer.Sound(join('../audio', 'game_music.wav'))
+game_music.set_volume(0.05)
+game_music.play(loops= -1) # -1 = infinite loop
 
 # sprites
 all_sprites = pygame.sprite.Group()
